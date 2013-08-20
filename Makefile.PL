@@ -15,4 +15,7 @@ WriteMakefile(
 	IRC::Utils => 0.12,
 	DB_File => 0.
   },
+  BUILD_REQUIRES      => {
+	Test::MockObject => 0,
+  }
 );

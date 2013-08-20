@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 
-use Taint::Util qw/taint/;
 use Test::MockObject;
 use Test::More tests => 16;
 
