@@ -4,7 +4,7 @@ use 5.014000;
 use strict;
 use warnings;
 
-our $VERSION = 0.001001;
+our $VERSION = '0.001002';
 
 use DB_File;
 
@@ -12,124 +12,126 @@ use IRC::Utils qw/parse_user/;
 use POE::Component::IRC::Plugin qw/PCI_EAT_NONE/;
 
 use constant +{
-  OK => [ 'sure, %s', 'ok, %s', 'gotcha, %s'],
-  A_IS_B => [ '%s is %s', 'I think %s is %s', 'hmmm... %s is %s', 'it has been said that %s is %s', '%s is probably %s', 'rumour has it %s is %s', 'i heard %s was %s', 'somebody said %s is %s', 'i guess %s is %s', 'well, %s is %s', '%s is, like, %s', 'methinks %s is %s'],
-  I_DONT_KNOW => [ 'I don\'t know, %s', 'Dunno, %s', 'No idea, %s', '%s: huh?', 'nem tudom, %s', 'anlamıyorum, %s', 'bilmiyorum, %s', 'nu ştiu d\'astea, %s', 'Je ne sais pas, %s', 'Я не знаю, %s'],
+	OK => [ 'sure, %s', 'ok, %s', 'gotcha, %s'],
+	A_IS_B => [ '%s is %s', 'I think %s is %s', 'hmmm... %s is %s', 'it has been said that %s is %s', '%s is probably %s', 'rumour has it %s is %s', 'i heard %s was %s', 'somebody said %s is %s', 'i guess %s is %s', 'well, %s is %s', '%s is, like, %s', 'methinks %s is %s'],
+	I_DONT_KNOW => [ 'I don\'t know, %s', 'Dunno, %s', 'No idea, %s', '%s: huh?', 'nem tudom, %s', 'anlamıyorum, %s', 'bilmiyorum, %s', 'nu ştiu d\'astea, %s', 'Je ne sais pas, %s', 'Я не знаю, %s'],
 };
 
 sub new {
-  my $class = shift;
-  my $self = {
-	filename => 'factoids.db',
-	@_
-  };
+	my $class = shift;
+	my $self = {
+		filename => 'factoids.db',
+		@_
+	};
 
-  my %db;
-  $self->{dbobj} = tie %db, DB_File => $self->{filename} if defined $self->{filename};
-  $self->{db} = \%db;
-  bless $self, $class
+	my %db;
+	$self->{dbobj} = tie %db, DB_File => $self->{filename} if defined $self->{filename};
+	$self->{db} = \%db;
+	bless $self, $class
 }
 
 sub getstr {
-  my $rstrings = shift;
-  my @strings = @$rstrings;
-  sprintf $strings[int rand $#strings], @_
+	my $rstrings = shift;
+	my @strings = @$rstrings;
+	sprintf $strings[int rand $#strings], @_
 }
 
 sub infobot_add {
-  my ($self, $irc, $key, $value, $to, $nick) = @_;
-  if (exists $self->{db}->{$key}) {
-	$irc->yield(privmsg => $to => "I already had it that way, $nick") if $value eq $self->{db}->{$key};
-	$irc->yield(privmsg => $to => "... but $key is $self->{db}->{$key}!") unless $value eq $self->{db}->{$key};
-  } else {
-	$self->{db}->{$key} = $value;
-	$self->{dbobj}->sync if exists $self->{dbobj};
-	$irc->yield(privmsg => $to => getstr OK, $nick);
-  }
+	my ($self, $irc, $key, $value, $to, $nick) = @_;
+	if (exists $self->{db}->{$key}) {
+		$irc->yield(privmsg => $to => "I already had it that way, $nick") if $value eq $self->{db}->{$key};
+		$irc->yield(privmsg => $to => "... but $key is $self->{db}->{$key}!") unless $value eq $self->{db}->{$key};
+	} else {
+		$self->{db}->{$key} = $value;
+		$self->{dbobj}->sync if exists $self->{dbobj};
+		$irc->yield(privmsg => $to => getstr OK, $nick);
+	}
 }
 
 sub infobot_query {
-  my ($self, $irc, $key, $to, $nick, $addressed) = @_;
-  if (exists $self->{db}->{$key}) {
-	my @answers = split /\s+\|\s+/, $self->{db}->{$key};
-	local $_ = $answers[int rand $#answers];
+	my ($self, $irc, $key, $to, $nick, $addressed) = @_;
+	if (exists $self->{db}->{$key}) {
+		my @answers = split /\s+\|\s+/, $self->{db}->{$key};
+		local $_ = $answers[int rand $#answers];
 
-	if (/^<action> (.+)$/i) {
-	  $irc->yield(ctcp => $to => "ACTION $1")
-	} elsif (/^<reply> (.*)$/i){
-	  $irc->yield(privmsg => $to => $1)
-	} else {
-	  $irc->yield(privmsg => $to => getstr A_IS_B, $key, $_)
+		if (/^<action> (.+)$/i) {
+			$irc->yield(ctcp => $to => "ACTION $1")
+		} elsif (/^<reply> (.*)$/i) {
+			$irc->yield(privmsg => $to => $1)
+		} else {
+			$irc->yield(privmsg => $to => getstr A_IS_B, $key, $_)
+		}
+	} elsif ($addressed) {
+		$irc->yield(privmsg => $to => getstr I_DONT_KNOW, $nick)
 	}
-  } elsif ($addressed) {
-	$irc->yield(privmsg => $to => getstr I_DONT_KNOW, $nick)
-  }
 }
 
 sub infobot_forget {
-  my ($self, $irc, $key, $to, $nick) = @_;
-  if (exists $self->{db}->{$key}) {
-	delete $self->{db}->{$key};
-	$self->{dbobj}->sync if exists $self->{dbobj};
-	$irc->yield(privmsg => $to => "$nick: I forgot $key")
-  } else {
-	$irc->yield(privmsg => $to => "I didn't have anything matching $key, $nick")
-  }
+	my ($self, $irc, $key, $to, $nick) = @_;
+	if (exists $self->{db}->{$key}) {
+		delete $self->{db}->{$key};
+		$self->{dbobj}->sync if exists $self->{dbobj};
+		$irc->yield(privmsg => $to => "$nick: I forgot $key")
+	} else {
+		$irc->yield(privmsg => $to => "I didn't have anything matching $key, $nick")
+	}
 }
 
 sub runcmd{
-  my ($self, $irc, $to, $nick, $message, $addressed) = @_;
+	my ($self, $irc, $to, $nick, $message, $addressed) = @_;
 
-  local $_= $message;
+	local $_= $message;
 
-  if (/^(.+)\s+is\s+(.*[^?])$/) {
-	infobot_add $self, $irc, $1, $2, $to, $nick if $addressed
-  } elsif (/^(.+)\?$/) {
-	infobot_query $self, $irc, $1, $to, $nick, $addressed
-  } elsif (/^forget\s+(.*)$/) {
-	infobot_forget $self, $irc, $1, $to, $nick if $addressed
-  }
+	if (/^(.+)\s+is\s+(.*[^?])$/) {
+		infobot_add $self, $irc, $1, $2, $to, $nick if $addressed
+	} elsif (/^(.+)\?$/) {
+		infobot_query $self, $irc, $1, $to, $nick, $addressed
+	} elsif (/^forget\s+(.*)$/) {
+		infobot_forget $self, $irc, $1, $to, $nick if $addressed
+	}
 }
 
 sub PCI_register {
-  my ($self, $irc) = @_;
-  $irc->plugin_register($self, SERVER => qw/public msg/);
-  1
+	my ($self, $irc) = @_;
+	$irc->plugin_register($self, SERVER => qw/public msg/);
+	1
 }
 
 sub PCI_unregister{ 1 }
 
 sub S_public {
-  my ($self, $irc, $rfullname, $rchannels, $rmessage) = @_;
-  my $nick = parse_user $$rfullname;
+	my ($self, $irc, $rfullname, $rchannels, $rmessage) = @_;
+	my $nick = parse_user $$rfullname;
 
-  for my $channel (@$$rchannels) {
-	local $_ = $$rmessage;
+	for my $channel (@$$rchannels) {
+		local $_ = $$rmessage;
 
-	my $addressed=0;
-	my $mynick=$irc->nick_name;
-	if (/^$mynick [,:]\s+/x) {
-	  $addressed=1;
-	  s/^$mynick [,:]\s+//x;
+		my $addressed=0;
+		my $mynick=$irc->nick_name;
+		if (/^$mynick [,:]\s+/x) {
+			$addressed=1;
+			s/^$mynick [,:]\s+//x;
+		}
+
+		runcmd $self, $irc, $channel, $nick, $_, $addressed
 	}
 
-	runcmd $self, $irc, $channel, $nick, $_, $addressed
-  }
-
-  PCI_EAT_NONE
+	PCI_EAT_NONE
 }
 
 sub S_msg{
-  my ($self, $irc, $rfullname, $rtargets, $rmessage) = @_;
-  my $nick = parse_user $$rfullname;
+	my ($self, $irc, $rfullname, $rtargets, $rmessage) = @_;
+	my $nick = parse_user $$rfullname;
 
-  runcmd $self, $irc, $nick, $nick, $$rmessage, 1;
+	runcmd $self, $irc, $nick, $nick, $$rmessage, 1;
 
-  PCI_EAT_NONE
+	PCI_EAT_NONE
 }
 
 1;
 __END__
+
+=encoding utf-8
 
 =head1 NAME
 

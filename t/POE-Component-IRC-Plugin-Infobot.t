@@ -9,8 +9,8 @@ BEGIN { use_ok('POE::Component::IRC::Plugin::Infobot') };
 
 no warnings 'redefine';
 sub POE::Component::IRC::Plugin::Infobot::getstr {
-  my $rstrings = shift;
-  sprintf @{$rstrings}[0], @_
+	my $rstrings = shift;
+	sprintf @{$rstrings}[0], @_
 }
 use warnings 'redefine';
 
@@ -18,8 +18,8 @@ my $last_msg;
 my $last_ctcp;
 
 sub yield {
-  $last_msg = $_[3] if $_[1] eq 'privmsg';
-  $last_ctcp = $_[3] if $_[1] eq 'ctcp';
+	$last_msg = $_[3] if $_[1] eq 'privmsg';
+	$last_ctcp = $_[3] if $_[1] eq 'ctcp';
 }
 
 my $mockirc = Test::MockObject->new;
@@ -28,12 +28,12 @@ $mockirc->mock(yield => \&yield)->set_always(nick_name => 'bot');
 my $self = POE::Component::IRC::Plugin::Infobot->new(filename => undef);
 
 sub runtest{
-  my ($message, $expect, $comment, $private) = @_;
-  undef $last_msg;
-  undef $last_ctcp;
-  $self->S_public($mockirc, \'mgv!marius@ieval.ro', \([ '#chan' ]), \$message) unless $private;
-  $self->S_msg($mockirc, \'mgv!marius@ieval.ro', undef, \$message) if $private;
-  is($last_msg // $last_ctcp, $expect, $comment)
+	my ($message, $expect, $comment, $private) = @_;
+	undef $last_msg;
+	undef $last_ctcp;
+	$self->S_public($mockirc, \'mgv!marius@ieval.ro', \([ '#chan' ]), \$message) unless $private;
+	$self->S_msg($mockirc, \'mgv!marius@ieval.ro', undef, \$message) if $private;
+	is($last_msg // $last_ctcp, $expect, $comment)
 }
 
 runtest 'bot: a is b', 'sure, mgv', 'add';
